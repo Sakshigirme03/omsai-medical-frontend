@@ -23,7 +23,7 @@ function App() {
 
   try {
     const response = await axios.get(
-      `http://localhost:8080/medicines/search?name=${searchTerm}`
+      `https://medical-store-ipem.onrender.com/medicines/search?name=${searchTerm}`
     );
 
     console.log("STATUS:", response.status);
@@ -344,7 +344,7 @@ function RequestForm({ medicineName }) {
     if (!validate()) return;
 
     try {
-      await axios.post("http://localhost:8080/requests", {
+      await axios.post("https://medical-store-ipem.onrender.com/requests", {
         customerName: name,
         phone: phone,
         medicineName: medicineName

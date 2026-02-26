@@ -13,7 +13,7 @@ import {
 
 /* ================= CONFIG ================= */
 
-const API_BASE = "http://localhost:8080";
+const API_BASE = "https://medical-store-ipem.onrender.com";
 
 const axiosConfig = {
   withCredentials: true
@@ -22,24 +22,39 @@ const axiosConfig = {
 
 function AdminLogin({ onLogin }) {
 
+  const navigate = useNavigate();
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
-    try {
-      await axios.get("http://localhost:8080/requests", {
-        auth: { username, password }
-      });
+  try {
+    const token = btoa(username + ":" + password);
 
-      const credentials = { username, password };
-sessionStorage.setItem("adminAuth", JSON.stringify(credentials));
-onLogin(credentials);
+    // Save token for future API calls
+    localStorage.setItem("authToken", token);
 
-    } catch (err) {
-      setError("Invalid credentials");
-    }
-  };
+// Test authentication
+await axios.get(
+  "https://medical-store-ipem.onrender.com/requests",
+  {
+    headers: {
+      Authorization: "Basic " + token,
+    },
+  }
+);
+
+// Tell Admin component we are logged in
+onLogin(token);
+
+// Go to admin page
+navigate("/admin");
+
+  } catch (error) {
+    setError("Invalid credentials");
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-sky-600 to-teal-500">
@@ -84,10 +99,16 @@ onLogin(credentials);
 function Admin() {
 
   const [auth, setAuth] = useState(() => {
-  const stored = sessionStorage.getItem("adminAuth");
-  return stored ? JSON.parse(stored) : null;
+  return localStorage.getItem("authToken");
 });
 
+const token = localStorage.getItem("authToken");
+
+const authHeader = {
+  headers: {
+    Authorization: "Basic " + token
+  }
+};
   const [requests, setRequests] = useState([]);
   const [medicines, setMedicines] = useState([]);
 
@@ -102,9 +123,7 @@ function Admin() {
 
   const fetchRequests = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/requests`, {
-  auth: auth
-});
+      const res = await axios.get(`${API_BASE}/requests`, authHeader);
       setRequests(res.data.data || []);
     } catch (err) {
       console.error("Fetch Requests Error:", err.response?.data || err.message);
@@ -129,7 +148,7 @@ function Admin() {
 
   const markCompleted = async (id) => {
     try {
-      await axios.put(`${API_BASE}/requests/${id}/complete`, {}, axiosConfig);
+      await axios.put(`${API_BASE}/requests/${id}/complete`, {}, authHeader);
       fetchRequests();
     } catch (err) {
       console.error("Complete Error:", err.response?.data || err.message);
@@ -139,7 +158,7 @@ function Admin() {
 
   const deleteRequest = async (id) => {
     try {
-      await axios.delete(`${API_BASE}/requests/${id}`, axiosConfig);
+      await axios.delete(`${API_BASE}/requests/${id}`, authHeader);
       fetchRequests();
     } catch (err) {
       console.error("Delete Request Error:", err.response?.data || err.message);
@@ -158,7 +177,7 @@ function Admin() {
           price: parseFloat(newMedicine.price),
           quantity: parseInt(newMedicine.quantity),
           available: true
-        }, axiosConfig);
+        }, authHeader);
 
       setNewMedicine({
         name: "",
@@ -177,7 +196,7 @@ function Admin() {
 
   const deleteMedicine = async (id) => {
     try {
-      await axios.delete(`${API_BASE}/medicines/${id}`, axiosConfig);
+      await axios.delete(`${API_BASE}/medicines/${id}`, authHeader);
       fetchMedicines();
     } catch (err) {
       console.error("Delete Medicine Error:", err.response?.data || err.message);
