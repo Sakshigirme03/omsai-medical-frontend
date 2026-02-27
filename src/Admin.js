@@ -15,9 +15,7 @@ import {
 
 const API_BASE = "https://medical-store-ipem.onrender.com";
 
-const axiosConfig = {
-  withCredentials: true
-};
+
 
 
 function AdminLogin({ onLogin }) {
@@ -94,21 +92,12 @@ navigate("/admin");
   );
 }
 
-
-
 function Admin() {
 
   const [auth, setAuth] = useState(() => {
-  return localStorage.getItem("authToken");
-});
+    return localStorage.getItem("authToken");
+  });
 
-const token = localStorage.getItem("authToken");
-
-const authHeader = {
-  headers: {
-    Authorization: "Basic " + token
-  }
-};
   const [requests, setRequests] = useState([]);
   const [medicines, setMedicines] = useState([]);
 
@@ -119,11 +108,25 @@ const authHeader = {
     quantity: ""
   });
 
+  /* ================= HELPER ================= */
+
+  const getAuthHeader = () => {
+    const token = localStorage.getItem("authToken");
+    return {
+      headers: {
+        Authorization: "Basic " + token
+      }
+    };
+  };
+
   /* ================= FETCH ================= */
 
   const fetchRequests = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/requests`, authHeader);
+      const res = await axios.get(
+        `${API_BASE}/requests`,
+        getAuthHeader()
+      );
       setRequests(res.data.data || []);
     } catch (err) {
       console.error("Fetch Requests Error:", err.response?.data || err.message);
@@ -140,25 +143,34 @@ const authHeader = {
   };
 
   useEffect(() => {
-    fetchRequests();
-    fetchMedicines();
-  }, []);
+    if (auth) {
+      fetchRequests();
+      fetchMedicines();
+    }
+  }, [auth]);
 
   /* ================= REQUEST ACTIONS ================= */
 
   const markCompleted = async (id) => {
     try {
-      await axios.put(`${API_BASE}/requests/${id}/complete`, {}, authHeader);
+      await axios.put(
+        `${API_BASE}/requests/${id}/complete`,
+        {},
+        getAuthHeader()
+      );
       fetchRequests();
     } catch (err) {
       console.error("Complete Error:", err.response?.data || err.message);
-      alert("Failed to complete request. Check backend mapping.");
+      alert("Failed to complete request.");
     }
   };
 
   const deleteRequest = async (id) => {
     try {
-      await axios.delete(`${API_BASE}/requests/${id}`, authHeader);
+      await axios.delete(
+        `${API_BASE}/requests/${id}`,
+        getAuthHeader()
+      );
       fetchRequests();
     } catch (err) {
       console.error("Delete Request Error:", err.response?.data || err.message);
@@ -170,14 +182,17 @@ const authHeader = {
 
   const addMedicine = async () => {
     try {
-      await axios.post(`${API_BASE}/medicines`,
+      await axios.post(
+        `${API_BASE}/medicines`,
         {
           name: newMedicine.name,
           manufacturer: newMedicine.manufacturer,
           price: parseFloat(newMedicine.price),
           quantity: parseInt(newMedicine.quantity),
           available: true
-        }, authHeader);
+        },
+        getAuthHeader()
+      );
 
       setNewMedicine({
         name: "",
@@ -186,7 +201,7 @@ const authHeader = {
         quantity: ""
       });
 
-      await fetchMedicines();
+      fetchMedicines();
 
     } catch (err) {
       console.error("Add Medicine Error:", err.response?.data || err.message);
@@ -196,7 +211,10 @@ const authHeader = {
 
   const deleteMedicine = async (id) => {
     try {
-      await axios.delete(`${API_BASE}/medicines/${id}`, authHeader);
+      await axios.delete(
+        `${API_BASE}/medicines/${id}`,
+        getAuthHeader()
+      );
       fetchMedicines();
     } catch (err) {
       console.error("Delete Medicine Error:", err.response?.data || err.message);
@@ -216,31 +234,39 @@ const authHeader = {
     { name: "Completed", value: completed }
   ];
 
+  /* ================= RENDER ================= */
+
+  if (!auth) {
+    return (
+      <AdminLogin
+        onLogin={(token) => {
+          localStorage.setItem("authToken", token);
+          setAuth(token);
+        }}
+      />
+    );
+  }
+
   return (
-  <>
-    {!auth ? (
-      <AdminLogin onLogin={setAuth} />
-    ) : (
-      <div className="min-h-screen bg-slate-50 p-8">
+    <div className="min-h-screen bg-slate-50 p-8">
 
       <div className="flex justify-between items-center mb-8">
-  <h1 className="text-3xl font-bold text-sky-700">
-    Admin Dashboard
-  </h1>
+        <h1 className="text-3xl font-bold text-sky-700">
+          Admin Dashboard
+        </h1>
 
-  <button
-    onClick={() => {
-  sessionStorage.removeItem("adminAuth");
-  setAuth(null);
-}}
-    className="text-sky-600 hover:underline font-medium"
-  >
-    Logout
-  </button>
-</div>
+        <button
+          onClick={() => {
+            localStorage.removeItem("authToken");
+            setAuth(null);
+          }}
+          className="text-sky-600 hover:underline font-medium"
+        >
+          Logout
+        </button>
+      </div>
 
-      {/* ================= STATS ================= */}
-
+      {/* STATS */}
       <div className="grid md:grid-cols-4 gap-6 mb-10">
         <StatCard title="Total Requests" value={totalRequests} color="bg-sky-600" />
         <StatCard title="Pending" value={pending} color="bg-orange-500" />
@@ -248,24 +274,7 @@ const authHeader = {
         <StatCard title="Total Medicines" value={totalMedicines} color="bg-purple-600" />
       </div>
 
-      {/* ================= CHART ================= */}
-
-      <div className="bg-white rounded-xl shadow p-6 mb-10">
-        <h2 className="text-xl font-semibold mb-4">Requests Overview</h2>
-
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="value" fill="#0ea5e9" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* ================= REQUEST TABLE ================= */}
-
+      {/* REQUEST TABLE */}
       <div className="bg-white rounded-xl shadow p-6 mb-12">
         <h2 className="text-xl font-semibold mb-4">Medicine Requests</h2>
 
@@ -322,8 +331,7 @@ const authHeader = {
         </div>
       </div>
 
-      {/* ================= MEDICINE SECTION ================= */}
-
+      {/* MEDICINE SECTION */}
       <div className="bg-white rounded-xl shadow p-6">
         <h2 className="text-xl font-semibold mb-6">Manage Medicines</h2>
 
@@ -400,11 +408,10 @@ const authHeader = {
         </div>
       </div>
 
-          </div>
-    )}
-  </>
-);
+    </div>
+  );
 }
+
 
 function StatCard({ title, value, color }) {
   return (
